@@ -18,56 +18,71 @@
 #include "openssl/rsa.h"      
 #include "openssl/crypto.h"
 
+#define ABE_ERROR(errmsg) LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, (errmsg)); \
+                            my_error(ER_ABE_DB_ERROR, MYF(0), (errmsg));\
+
 AbeSslConfig::~AbeSslConfig()
 {
-    free(ca_cert_file);
-    free(db_cert_file);
-    free(db_key_file);
-    free(kms_cert_file);
-    free(kms_ip);
-    free(uuid);
-}
-
-void AbeSslConfig::set_ca_cert_file()
-{
-    ca_cert_file = strdup(abe_ca_cert_file);
-}
-
-void AbeSslConfig::set_db_cert_file()
-{
-    db_cert_file = strdup(abe_db_cert_file);
-}
-
-void AbeSslConfig::set_db_key_file()
-{
-    db_key_file = strdup(abe_db_key_file);
-}
-
-void AbeSslConfig::set_kms_cert_file()
-{
-    kms_cert_file = strdup(abe_kms_cert_file);
+    if(ca_cert_file != NULL)    free(ca_cert_file);
+    if(db_cert_file != NULL)    free(db_cert_file);
+    if(db_key_file != NULL)     free(db_key_file);
+    if(kms_cert_file != NULL)   free(kms_cert_file);
+    if(kms_ip != NULL)          free(kms_ip);
+    if(uuid != NULL)            free(uuid);
 }
 
 void AbeSslConfig::set_default_file()
 {
-    set_ca_cert_file();
-    set_db_cert_file();
-    set_db_key_file();
-    set_kms_cert_file();
+    ca_cert_file = NULL;
+    db_cert_file = NULL;
+    db_key_file = NULL;
+    kms_cert_file = NULL;
+    if(strlen(abe_ca_cert_file) != 0 )
+        ca_cert_file = strdup(abe_ca_cert_file);
+    if(strlen(abe_db_cert_file) != 0 )
+        db_cert_file = strdup(abe_db_cert_file);
+    if(strlen(abe_db_key_file) != 0 )
+        db_key_file = strdup(abe_db_key_file);
+    if(strlen(abe_kms_cert_file) != 0 )
+        kms_cert_file = strdup(abe_kms_cert_file);
 }
 
 void AbeSslConfig::set_kms_addr()
 {
-    kms_ip = strdup(abe_kms_ip);
+    kms_ip = NULL;
+    if(strlen(abe_kms_ip) != 0)
+        kms_ip = strdup(abe_kms_ip);
     kms_port = abe_kms_port;
 }
 
+_AbeInfoData::~_AbeInfoData(){
+    if(user_name != NULL)       free(user_name);
+    if(attribute != NULL)       free(attribute);
+    if(db_signature != NULL)    free(db_signature);
+    if(db_signature_type != NULL)    free(db_signature_type);
+    if(abe_key != NULL)         free(abe_key);
+    if(kms_signature != NULL)   free(kms_signature);
+    if(kms_signature_type != NULL)    free(kms_signature_type);
+}
+
+//检查是否成功获取到了abe_key
+bool _AbeInfoData::checkResult() const {
+    if(abe_key != NULL && db_signature != NULL && db_signature_type != NULL
+                        && kms_signature != NULL && kms_signature_type != NULL){
+        return true;
+    }
+    return false;
+}
+
+
+//正常返回socket，否则返回-1
 int Abe_ssl::create_socket(const AbeSslConfig &config) {
     int sockfd = -1;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to create socket");
+        ABE_ERROR("Failed to create socket");
+        return -1;
     }
 
     sockaddr_in kms_addr;
@@ -76,7 +91,8 @@ int Abe_ssl::create_socket(const AbeSslConfig &config) {
     inet_pton(AF_INET, config.kms_ip, &kms_addr.sin_addr);
     
     if (connect(sockfd, (struct sockaddr*)(&kms_addr), sizeof(kms_addr)) == -1) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to connect to kms");
+        ABE_ERROR("Failed to connect to kms");
+        return -1;
     }
 
     return sockfd;
@@ -92,25 +108,30 @@ SSL_CTX *Abe_ssl::init_ssl_context(const AbeSslConfig &config)
 
     ssl_ctx = SSL_CTX_new(TLS_client_method());
     if(ssl_ctx == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to create ssl ctx for abe");
+        ABE_ERROR("Failed to create ssl ctx for abe");
+        return NULL;
     }
 
     SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);   
     
     if (SSL_CTX_load_verify_locations(ssl_ctx, config.ca_cert_file, NULL) <= 0) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to use ca certificate file");
+        ABE_ERROR("Failed to use ca certificate file");
+        return NULL;
     }
 
     if (SSL_CTX_use_certificate_file(ssl_ctx, config.db_cert_file, SSL_FILETYPE_PEM) <= 0) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to use db certificate file");
+        ABE_ERROR("Failed to use db certificate file");
+        return NULL;
     }
 
     if (SSL_CTX_use_PrivateKey_file(ssl_ctx, config.db_key_file, SSL_FILETYPE_PEM) <= 0) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to use db private key file");
+        ABE_ERROR("Failed to use db private key file");
+        return NULL;
     }
 
     if (!SSL_CTX_check_private_key(ssl_ctx)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Certificate does not match private key");
+        ABE_ERROR("Certificate does not match private key");
+        return NULL;
     }
 
     SSL_CTX_set_cipher_list(ssl_ctx, "ECDHE-RSA-AES256-SHA");
@@ -126,7 +147,8 @@ SSL *Abe_ssl::create_ssl_connection(SSL_CTX *ssl_ctx, int sockfd) {
     SSL_set_fd(ssl, sockfd);
     
     if (SSL_connect(ssl) != 1) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to establish SSL connection");
+        ABE_ERROR("Failed to establish SSL connection");
+        return NULL;
     }
     
     return ssl;
@@ -165,7 +187,7 @@ void Abe_ssl::set_user_registration_uuid(cJSON *cjson, AbeSslConfig &config)
     config.uuid = strdup(uuid_str.c_str());
 }
 
-void Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_key_file, const AbeInfo abe_info)
+bool Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_key_file, const AbeInfo &abe_info)
 {
     FILE *private_key_file = NULL;
     RSA* rsa = NULL;
@@ -178,22 +200,29 @@ void Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_ke
 
     private_key_file = fopen(db_key_file, "r");
     if (private_key_file == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to use private key file");
+        ABE_ERROR("Failed to use private key file");
+        return false;
     }
 
     rsa = PEM_read_RSAPrivateKey(private_key_file, NULL, NULL, NULL);
     if (rsa == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to read private key file");
+        ABE_ERROR("Failed to read private key file");
+        fclose(private_key_file);
+        return false;
     }
 
-    buf = std::string(abe_info->user_name) + std::string(abe_info->attribute);
+    buf = std::string(abe_info.user_name) + std::string(abe_info.attribute);
     
-    SHA256((unsigned char*)buf.c_str(), buf.size(), hash_msg);
+    SHA256((const unsigned char*)buf.c_str(), buf.size(), hash_msg);
     db_signature = (unsigned char*)malloc(RSA_size(rsa));
 
     if (RSA_sign(NID_sha256, hash_msg, SHA256_DIGEST_LENGTH, 
-        db_signature, &db_signature_length, rsa) != 1) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "RSA Signature Failed");
+                db_signature, &db_signature_length, rsa) != 1) {
+        ABE_ERROR("RSA Signature Failed");
+        free(db_signature);
+        RSA_free(rsa);
+        fclose(private_key_file);
+        return false;
     }
 
     db_signature_b64 = (char*)malloc(base64_utils::b64_enc_len(db_signature_length) + 1);
@@ -207,15 +236,16 @@ void Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_ke
     free(db_signature);
     RSA_free(rsa);
     fclose(private_key_file);
+    return true;
 }
 
-void Abe_ssl::set_user_registration_request(cJSON *cjson, AbeSslConfig &config, const AbeInfo abe_info)
+bool Abe_ssl::set_user_registration_request(cJSON *cjson, AbeSslConfig &config, const AbeInfo &abe_info)
 {
     cJSON_AddNumberToObject(cjson, "type", ENUM_EVENT_USER_REGISTRATION);
     set_user_registration_uuid(cjson, config);
-    cJSON_AddStringToObject(cjson, "userName", abe_info->user_name);
-    cJSON_AddStringToObject(cjson, "attribute", abe_info->attribute);
-    set_user_registration_db_signature(cjson, config.db_key_file, abe_info);
+    cJSON_AddStringToObject(cjson, "userName", abe_info.user_name);
+    cJSON_AddStringToObject(cjson, "attribute", abe_info.attribute);
+    return set_user_registration_db_signature(cjson, config.db_key_file, abe_info);
 }
 
 void Abe_ssl::send_user_registration_request(SSL *ssl, const char *msg, size_t msg_length)
@@ -228,39 +258,46 @@ void Abe_ssl::send_user_registration_request(SSL *ssl, const char *msg, size_t m
     write_msg(ssl, msg, msg_length);
 }
 
-void Abe_ssl::set_abe_info_from_request_json(cJSON *cjson, AbeInfo abe_info)
+bool Abe_ssl::set_abe_info_from_request_json(cJSON *cjson, AbeInfo &abe_info)
 {
     cJSON *db_signature = NULL;
     cJSON *db_signature_type = NULL;
 
     db_signature = cJSON_GetObjectItem(cjson, "dbSignature");
-    if (!cJSON_IsObject(db_signature)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json");
+    if (db_signature == NULL) {
+        ABE_ERROR("Failed to parse json(dbSignature)");
+        return false;
     }
-    abe_info->db_signature = strdup(db_signature->valuestring);
+    abe_info.db_signature = strdup(db_signature->valuestring);
 
     db_signature_type = cJSON_GetObjectItem(cjson, "dbSignatureType");
-    if (!cJSON_IsObject(db_signature_type)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json");
+    if (db_signature_type == NULL) {
+        ABE_ERROR("Failed to parse json(dbSignatureType)");
+        return false;
     }
-    abe_info->db_signature_type = strdup(db_signature_type->valuestring);
+    abe_info.db_signature_type = strdup(db_signature_type->valuestring);
+    return true;
 }
 
-void Abe_ssl::process_user_registration_request(SSL *ssl, AbeSslConfig &config, AbeInfo abe_info)
+bool Abe_ssl::process_user_registration_request(SSL *ssl, AbeSslConfig &config, AbeInfo &abe_info)
 {
     char *json_str = NULL;
     cJSON *request_json = NULL;
     
     request_json = cJSON_CreateObject();
-    set_user_registration_request(request_json, config, abe_info);
 
-    set_abe_info_from_request_json(request_json, abe_info);
+    if( !(set_user_registration_request(request_json, config, abe_info)
+        && set_abe_info_from_request_json(request_json, abe_info))){
+            cJSON_Delete(request_json);
+            return false;
+        }
 
     json_str = cJSON_PrintUnformatted(request_json);
     send_user_registration_request(ssl, json_str, strlen(json_str));
 
     cJSON_Delete(request_json);
     free(json_str);
+    return true;
 }
 
 char *Abe_ssl::recv_user_registration_response(SSL *ssl)
@@ -280,7 +317,7 @@ char *Abe_ssl::recv_user_registration_response(SSL *ssl)
     return msg;
 }
 
-void Abe_ssl::parse_user_registration_response(const char *json_str, const char *uuid_str, AbeInfo abe_info)
+bool Abe_ssl::parse_user_registration_response(const char *json_str, const char *uuid_str, AbeInfo &abe_info)
 {
     cJSON *response_json = NULL;
     cJSON* code = NULL;
@@ -293,44 +330,55 @@ void Abe_ssl::parse_user_registration_response(const char *json_str, const char 
 
     response_json = cJSON_Parse(json_str);
     if (response_json == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json from kms response");
+        ABE_ERROR("Failed to parse json from kms response");
+        return false;
     }
 
     code = cJSON_GetObjectItem(response_json, "code");
     msg = cJSON_GetObjectItem(response_json, "msg");
     data = cJSON_GetObjectItem(response_json, "data");
     if (!cJSON_IsNumber(code) || !cJSON_IsString(msg) || !cJSON_IsObject(data)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json from kms response");
+        ABE_ERROR("Failed to parse json from kms response");
+        return false;
     }
 
     uuid = cJSON_GetObjectItem(data, "uuid");
     if (!cJSON_IsString(uuid)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json from kms response");
+        ABE_ERROR("Failed to parse json from kms response");
+        cJSON_Delete(response_json);
+        return false;
     }
 
     if (strcmp(uuid->valuestring, uuid_str) != 0) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Inconsistent uuid between request and response");
+        ABE_ERROR("Inconsistent uuid between request and response");
+        cJSON_Delete(response_json);
+        return false;
     }
 
     if (code->valueint != ENUM_RESPONSE_SUCCESS) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Response error from kms.");
+        ABE_ERROR("Response error from kms.");
+        cJSON_Delete(response_json);
+        return false;
     }
 
     abe_key = cJSON_GetObjectItem(data, "abeKey");
     kms_signature = cJSON_GetObjectItem(data, "kmsSignature");
     kms_signature_type = cJSON_GetObjectItem(data, "kmsSignatureType");
     if (!cJSON_IsString(abe_key) || !cJSON_IsString(kms_signature) || !cJSON_IsString(kms_signature_type)) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to parse json from kms response");
+        ABE_ERROR("Failed to parse json from kms response");
+        cJSON_Delete(response_json);
+        return false;
     }
     
-    abe_info->abe_key = strdup(abe_key->valuestring);
-    abe_info->kms_signature = strdup(kms_signature->valuestring);
-    abe_info->kms_signature_type = strdup(kms_signature_type->valuestring);
+    abe_info.abe_key = strdup(abe_key->valuestring);
+    abe_info.kms_signature = strdup(kms_signature->valuestring);
+    abe_info.kms_signature_type = strdup(kms_signature_type->valuestring);
 
     cJSON_Delete(response_json);
+    return true;
 }
 
-void Abe_ssl::verify_kms_signature(const AbeInfo abe_info, const char *kms_cert_file)
+bool Abe_ssl::verify_kms_signature(const AbeInfo &abe_info, const char *kms_cert_file)
 {
     FILE* cert_file = NULL;
     X509* x509_cert = NULL;
@@ -346,36 +394,47 @@ void Abe_ssl::verify_kms_signature(const AbeInfo abe_info, const char *kms_cert_
     unsigned int kms_signature_b64_length = 0;
     static unsigned char hash_msg[SHA256_DIGEST_LENGTH];
 
-    if (strcmp(abe_info->kms_signature_type, "RSA") != 0) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "only support for RSA signatures yet");
+    if (strcmp(abe_info.kms_signature_type, "RSA") != 0) {
+        ABE_ERROR("only support for RSA signatures yet");
+        return false;
     }
 
     cert_file = fopen(kms_cert_file, "r");
     if (cert_file == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to open kms cert file");
+        ABE_ERROR("Failed to open kms cert file");
+        return false;
     }
 
     x509_cert = PEM_read_X509(cert_file, NULL, NULL, NULL);
     if (x509_cert == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to read kms cert file");
+        ABE_ERROR("Failed to read kms cert file");
+        fclose(cert_file);
+        return false;
     }
 
     evp_key = X509_get_pubkey(x509_cert);
     if (evp_key == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to get publib key from kms cert file");
+        ABE_ERROR("Failed to get publib key from kms cert file");
+        X509_free(x509_cert);
+        fclose(cert_file);
+        return false;
     }
 
     rsa = EVP_PKEY_get1_RSA(evp_key);
     if (rsa == NULL) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "Failed to get rsa publib key from kms cert file");
+        ABE_ERROR("Failed to get rsa publib key from kms cert file");
+        EVP_PKEY_free(evp_key);
+        X509_free(x509_cert);
+        fclose(cert_file);
+        return false;
     }
 
-    kms_signature_b64 = abe_info->kms_signature;
+    kms_signature_b64 = abe_info.kms_signature;
     kms_signature_b64_length = strlen(kms_signature_b64);
     kms_signature = (unsigned char*)malloc(base64_utils::b64_dec_len(kms_signature_b64_length));
     kms_signature_length = base64_utils::b64_decode(kms_signature_b64, kms_signature_b64_length, (char*)kms_signature);
 
-    abe_key_b64 = abe_info->abe_key;
+    abe_key_b64 = abe_info.abe_key;
     abe_key_b64_length = strlen(abe_key_b64);
     abe_key = (unsigned char*)malloc(base64_utils::b64_dec_len(abe_key_b64_length));
     abe_key_length = base64_utils::b64_decode(abe_key_b64, abe_key_b64_length, (char*)abe_key);
@@ -383,8 +442,15 @@ void Abe_ssl::verify_kms_signature(const AbeInfo abe_info, const char *kms_cert_
     SHA256(abe_key, abe_key_length, hash_msg);
 
     if (RSA_verify(NID_sha256, hash_msg, SHA256_DIGEST_LENGTH, 
-        kms_signature, kms_signature_length, rsa) != 1) {
-        LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, "kms signature verification failed");
+                    kms_signature, kms_signature_length, rsa) != 1) {
+        ABE_ERROR("kms signature verification failed");
+        free(abe_key);
+        free(kms_signature);
+        RSA_free(rsa);
+        EVP_PKEY_free(evp_key);
+        X509_free(x509_cert);
+        fclose(cert_file);
+        return false;
     }
 
     free(abe_key);
@@ -393,22 +459,24 @@ void Abe_ssl::verify_kms_signature(const AbeInfo abe_info, const char *kms_cert_
     EVP_PKEY_free(evp_key);
     X509_free(x509_cert);
     fclose(cert_file);
+    return true;
 }
 
-void Abe_ssl::process_user_registration_response(SSL *ssl, const AbeSslConfig &config, AbeInfo abe_info)
+bool Abe_ssl::process_user_registration_response(SSL *ssl, const AbeSslConfig &config, AbeInfo &abe_info)
 {
     char *json_str = NULL;
 
     json_str = recv_user_registration_response(ssl);
 
-    parse_user_registration_response(json_str, config.uuid, abe_info);
-
-    verify_kms_signature(abe_info, config.kms_cert_file);
-    
-    free(json_str);
+    if( !(parse_user_registration_response(json_str, config.uuid, abe_info)
+        && verify_kms_signature(abe_info, config.kms_cert_file))){
+            free(json_str);
+            return false;
+        }
+    return true;
 }
 
-void Abe_ssl::generateABEInfo(AbeInfo abe_info)
+bool Abe_ssl::generateABEInfo(AbeInfo &abe_info)
 {
     int sockfd = -1;
     SSL_CTX* ssl_ctx = NULL;
@@ -419,14 +487,36 @@ void Abe_ssl::generateABEInfo(AbeInfo abe_info)
     config.set_default_file();
 
     sockfd = create_socket(config);
-    ssl_ctx = init_ssl_context(config);
-    ssl = create_ssl_connection(ssl_ctx, sockfd);
+    if(sockfd == -1){
+        return false;
+    }
 
-    process_user_registration_request(ssl, config, abe_info);
-    process_user_registration_response(ssl, config, abe_info);
+    ssl_ctx = init_ssl_context(config);
+    if(ssl_ctx == NULL){
+        close(sockfd);
+        return false;
+    }
     
+    ssl = create_ssl_connection(ssl_ctx, sockfd);
+    if(ssl == NULL){
+        SSL_CTX_free(ssl_ctx);
+        close(sockfd);
+        return false;
+    }
+
+    //通信获取abe_key到abe_info中
+    if( !(process_user_registration_request(ssl, config, abe_info)
+        && process_user_registration_response(ssl, config, abe_info))){
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+            SSL_CTX_free(ssl_ctx);
+            close(sockfd);
+            return false;
+        }
+
     SSL_shutdown(ssl);
     SSL_free(ssl);
     SSL_CTX_free(ssl_ctx);
     close(sockfd);
+    return true;
 }

@@ -9655,6 +9655,14 @@ ER_VALUE_OUT_OF_RANGE
 ER_SEPARATION_OF_POWERS_DENIED_ERROR 42000
   eng "Operation denied due to the separation of powers."
 
+ER_ABE_DB_ERROR
+  eng "abe db server error: %s"
+
+ER_ABE_CLIENT_ERROR
+  eng "abe client error: %s"
+
+ER_ABE_KMS_ERROR
+  eng "abe kms error: %s"
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

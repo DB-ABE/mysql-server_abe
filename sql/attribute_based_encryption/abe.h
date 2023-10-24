@@ -6,6 +6,6 @@
 #include <string>
 
 
-std::string initAbeData(std::string userhost, std::string abeAttribute);
+bool initAbeData(std::string &command, const std::string namehost, const std::string abeAttribute);
 
 #endif /* SEC_ABE_H */

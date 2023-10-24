@@ -10,33 +10,31 @@
 
 struct AbeSslConfig
 {
-    char *ca_cert_file;
-    char *db_cert_file;
-    char *db_key_file;
-    char *kms_cert_file;
-    char *kms_ip;
+    char *ca_cert_file = NULL;
+    char *db_cert_file = NULL;
+    char *db_key_file = NULL;
+    char *kms_cert_file = NULL;
+    char *kms_ip = NULL;
     ulong kms_port;
-    char *uuid;
+    char *uuid = NULL;
 
     ~AbeSslConfig();
-    void set_ca_cert_file();
-    void set_db_cert_file();
-    void set_db_key_file();
-    void set_kms_cert_file();
     void set_default_file();
     void set_kms_addr();
 };
 
 typedef struct _AbeInfoData
 {
-    char *user_name;
-    char *attribute;
-    char *db_signature;
-    char *db_signature_type;
-    char *abe_key;
-    char *kms_signature;
-    char *kms_signature_type;
-} AbeInfoData, *AbeInfo;
+    char *user_name = NULL;
+    char *attribute = NULL;
+    char *db_signature = NULL;
+    char *db_signature_type = NULL;
+    char *abe_key = NULL;
+    char *kms_signature = NULL;
+    char *kms_signature_type = NULL;
+    ~_AbeInfoData();
+    bool checkResult() const;
+} AbeInfo, *pAbeInfo;
 
 struct Abe_ssl
 {
@@ -47,25 +45,26 @@ public:
     enum enum_response_code {ENUM_RESPONSE_SUCCESS, ENUM_RESPONSE_USER_PK_NOT_FOUND, ENUM_RESPONSE_UNKOWN};
 
     //读取配置信息，建立SSL连接，完成注册流程后将信息写入abe_info中
-    void generateABEInfo(AbeInfo abe_info);
+    bool generateABEInfo(AbeInfo &abe_info);
 
 private:
     //构造json数据包并发送
-    void process_user_registration_request(SSL *ssl, AbeSslConfig &config, AbeInfo abe_info);
+    bool process_user_registration_request(SSL *ssl, AbeSslConfig &config, AbeInfo &abe_info);
 
-    void set_user_registration_request(cJSON *cjson, AbeSslConfig &config, const AbeInfo abe_info);
+    bool set_user_registration_request(cJSON *cjson, AbeSslConfig &config, const AbeInfo &abe_info);
     void send_user_registration_request(SSL *ssl, const char *msg, size_t msg_length);
     void set_user_registration_uuid(cJSON *cjson, AbeSslConfig &config);
-    void set_user_registration_db_signature(cJSON *cjson, const char *db_key_file, const AbeInfo abe_info);
-    void set_abe_info_from_request_json(cJSON *cjson, AbeInfo abe_info);
+    bool set_user_registration_db_signature(cJSON *cjson, const char *db_key_file, const AbeInfo &abe_info);
+    bool set_abe_info_from_request_json(cJSON *cjson, AbeInfo &abe_info);
 
     //接收KMS返回的数据包并解析
-    void process_user_registration_response(SSL *ssl, const AbeSslConfig &config, AbeInfo abe_info);
+    bool process_user_registration_response(SSL *ssl, const AbeSslConfig &config, AbeInfo &abe_info);
 
     char *recv_user_registration_response(SSL *ssl);
-    void parse_user_registration_response(const char *json_str, const char *uuid_str, AbeInfo abe_info);
-    void verify_kms_signature(const AbeInfo abe_info, const char *kms_cert_file);
+    bool parse_user_registration_response(const char *json_str, const char *uuid_str, AbeInfo &abe_info);
+    bool verify_kms_signature(const AbeInfo &abe_info, const char *kms_cert_file);
 
+    
     int create_socket(const AbeSslConfig &config);
     SSL_CTX *init_ssl_context(const AbeSslConfig &config);
     SSL *create_ssl_connection(SSL_CTX *ssl_ctx, int sockfd);

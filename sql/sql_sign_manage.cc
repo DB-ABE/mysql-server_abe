@@ -2525,7 +2525,17 @@ bool grant_abe_att(THD *thd,vector<LEX_STRING>& paramaters)
     command1 += "')";
     
     //和KMS通信，获取abe密钥，构造插入语句
-    string add_abe_key_command = initAbeData(namehost,att_list.str);
+    string add_abe_key_command;
+    if(!initAbeData(add_abe_key_command,namehost, att_list.str)){
+        thd->update_slow_query_status();
+        if (thd->killed) thd->send_kill_message();
+        thd->send_statement_status();
+        thd->reset_query();
+        thd->set_command(COM_SLEEP);
+        thd->set_proc_info(nullptr);
+        thd->lex->sql_command = SQLCOM_END;
+        return false; 
+    }
 
     string command = command1 + ";" + add_abe_key_command;
 
