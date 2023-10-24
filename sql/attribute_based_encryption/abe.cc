@@ -4,39 +4,37 @@
 #include <string.h>
 // #include "sql/table.h"
 
-// static void requestAbeInfo(Oid userId, const char *attribute, AbeInfo abe_info)
-// {
-//     Abe_ssl abe_ssl;
-//     abe_info->user_name = GetUserNameFromId(userId);
-//     abe_info->attribute = pstrdup(attribute);
-//     abe_ssl.generateABEInfo(abe_info);
-// }
-
-static void addAbeKey(std::string userhost, const AbeInfo abe_info)
+std::string addAbeKeyCommand(std::string namehost, const AbeInfo abe_info)
 {
     // TABLE_LIST tables("mysql", "abe_user_key", TL_WRITE);
+    std::string command = "insert into mysql.abe_user_key(owner,encrypted_key,sig_db,sig_db_type,sig_kms,sig_kms_type) values('";
+    command += namehost;
+    command += "','";
+    command += abe_info->abe_key;
+    command += "','";
+    command += abe_info->db_signature;
+    command += "','";
+    command += abe_info->db_signature_type;
+    command += "','";
+    command += abe_info->kms_signature;
+    command += "','";
+    command += abe_info->kms_signature_type;
+    command += "')";
+    return command;
 
 }
 
-static void addAbeAttributeManager(std::string userhost, char* abeAttribute)
+std::string initAbeData(std::string namehost, std::string abeAttribute)
 {
-    // TABLE_LIST tables("mysql", "abe_user_key", TL_WRITE);
-}
-
-void initAbeData(std::string userhost, std::string abeAttribute)
-{
-    
-
     AbeInfo abe_info = (AbeInfo)malloc(sizeof(AbeInfoData));
     Abe_ssl abe_ssl;
-    abe_info->user_name = strdup(userhost.c_str());
+    abe_info->user_name = strdup(namehost.c_str());
     abe_info->attribute = strdup(abeAttribute.c_str());
     abe_ssl.generateABEInfo(abe_info);
-    // requestAbeInfo(userId, abeAttribute, abe_info);
 
-    // addAbeKey(userId, abe_info);
-    // addAbeAttributeManager(userId, abeAttribute);
+    std::string command = addAbeKeyCommand(namehost, abe_info);
     free(abe_info->user_name);
     free(abe_info->attribute);
     free(abe_info);
+    return command;
 }

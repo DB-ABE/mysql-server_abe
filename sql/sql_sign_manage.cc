@@ -2476,14 +2476,17 @@ bool check_sign(THD* thd, LEX_CSTRING db, LEX_CSTRING table, LEX_CSTRING col_nam
 bool create_user_and_att(THD *thd,vector<LEX_STRING>& paramaters)
 {
     // my_error(ER_UNABLE_TO_SET_OPTION, MYF(0),base64_utils::_base64);
-    return true;
-}
-
-bool grant_abe_att(THD *thd,vector<LEX_STRING>& paramaters)
-{
-    LEX_STRING att_list = paramaters[0];
-    LEX_STRING user_name = paramaters[1];
-    LEX_STRING user_host = paramaters[2];
+    LEX_STRING user_name = paramaters[0];
+    LEX_STRING user_host = paramaters[1];
+    LEX_STRING passwd = paramaters[2];
+    LEX_STRING att_list = paramaters[3];
+    string command1 = "create user '";
+    command1 += user_name.str;
+    command1 += "'@'";
+    command1 += user_host.str;
+    command1 += "' identified by '";
+    command1 += passwd.str;
+    command1 += "'";
     string command2 = "insert into mysql.abe_attribute_manager(user, att) values('";
     command2 += user_name.str;
     command2 += "@";
@@ -2491,23 +2494,52 @@ bool grant_abe_att(THD *thd,vector<LEX_STRING>& paramaters)
     command2 += "','";
     command2 += att_list.str;
     command2 += "')";
-    COM_DATA cmd2;
-    memset(&cmd2, 0, sizeof(cmd2));
-    
+    command1 = command1 + ";" + command2;
+    COM_DATA cmd1;
+    memset(&cmd1, 0, sizeof(cmd1));
+
     //char buf[200] ={0};
-    int len2 = command2.length()+5;
-    char *buf2 = new char[len2];
-    memset(buf2,0,len2);
+    int len1 = command1.length()+5;
+    char *buf1 = new char[len1];
+    memset(buf1,0,len1);
+
+    strcpy(buf1, command1.c_str());
+    cmd1.com_query.query = reinterpret_cast<const char *>(buf1);
+    cmd1.com_query.length = static_cast<unsigned int>(command1.length());
+
+    bool res1 =  dispatch_command(thd, &cmd1, COM_QUERY);
+    delete[] buf1;
+    return res1;
+}
+
+bool grant_abe_att(THD *thd,vector<LEX_STRING>& paramaters)
+{
+    LEX_STRING att_list = paramaters[0];
+    LEX_STRING user_name = paramaters[1];
+    LEX_STRING user_host = paramaters[2];
+    string namehost = user_name.str + string("@") + user_host.str;
+    string command1 = "insert into mysql.abe_attribute_manager(user, att) values('";
+    command1 += namehost;
+    command1 += "','";
+    command1 += att_list.str;
+    command1 += "')";
     
-    strcpy(buf2, command2.c_str());
-    cmd2.com_query.query = reinterpret_cast<const char *>(buf2);
-    cmd2.com_query.length = static_cast<unsigned int>(command2.length());
+    //和KMS通信，获取abe密钥，构造插入语句
+    string add_abe_key_command = initAbeData(namehost,att_list.str);
 
-    bool res2 =  dispatch_command(thd, &cmd2, COM_QUERY);
-    delete[] buf2;
+    string command = command1 + ";" + add_abe_key_command;
 
-    string sub = user_name.str + string("@") + user_host.str;
-    initAbeData(sub,att_list.str);
+    COM_DATA cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    int len = command.length()+5;
+    char *buf = new char[len];
+    memset(buf,0,len);
+    
+    strcpy(buf, command.c_str());
+    cmd.com_query.query = reinterpret_cast<const char *>(buf);
+    cmd.com_query.length = static_cast<unsigned int>(command.length());
 
-    return res2;
+    bool res =  dispatch_command(thd, &cmd, COM_QUERY);
+    delete[] buf;
+    return res;
 }

@@ -418,15 +418,15 @@ void Abe_ssl::generateABEInfo(AbeInfo abe_info)
     config.set_kms_addr();
     config.set_default_file();
 
-    // sockfd = create_socket(config);
-    // ssl_ctx = init_ssl_context(config);
-    // ssl = create_ssl_connection(ssl_ctx, sockfd);
+    sockfd = create_socket(config);
+    ssl_ctx = init_ssl_context(config);
+    ssl = create_ssl_connection(ssl_ctx, sockfd);
 
-    // process_user_registration_request(ssl, config, abe_info);
-    // process_user_registration_response(ssl, config, abe_info);
+    process_user_registration_request(ssl, config, abe_info);
+    process_user_registration_response(ssl, config, abe_info);
     
-    // SSL_shutdown(ssl);
-    // SSL_free(ssl);
-    // SSL_CTX_free(ssl_ctx);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    SSL_CTX_free(ssl_ctx);
     close(sockfd);
 }
