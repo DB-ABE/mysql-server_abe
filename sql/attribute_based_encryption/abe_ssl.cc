@@ -21,6 +21,9 @@
 #define ABE_ERROR(errmsg) LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, (errmsg)); \
                             my_error(ER_ABE_DB_ERROR, MYF(0), (errmsg));\
 
+#define ABE_KMS_ERROR(errmsg) LogErr(ERROR_LEVEL, ER_ABE_SYSTEM, (errmsg)); \
+                            my_error(ER_ABE_KMS_ERROR, MYF(0), (errmsg));\
+
 AbeSslConfig::~AbeSslConfig()
 {
     if(ca_cert_file != NULL)    free(ca_cert_file);
@@ -196,7 +199,7 @@ bool Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_ke
     unsigned int db_signature_length = 0;
     char* db_signature_b64 = NULL;
     unsigned int db_signature_b64_length = 0;
-    static unsigned char hash_msg[SHA256_DIGEST_LENGTH];
+    static unsigned char hash_msg[SHA512_DIGEST_LENGTH];
 
     private_key_file = fopen(db_key_file, "r");
     if (private_key_file == NULL) {
@@ -213,10 +216,10 @@ bool Abe_ssl::set_user_registration_db_signature(cJSON *cjson, const char *db_ke
 
     buf = std::string(abe_info.user_name) + std::string(abe_info.attribute);
     
-    SHA256((const unsigned char*)buf.c_str(), buf.size(), hash_msg);
+    SHA512((const unsigned char*)buf.c_str(), buf.size(), hash_msg);
     db_signature = (unsigned char*)malloc(RSA_size(rsa));
 
-    if (RSA_sign(NID_sha256, hash_msg, SHA256_DIGEST_LENGTH, 
+    if (RSA_sign(NID_sha512, hash_msg, SHA512_DIGEST_LENGTH, 
                 db_signature, &db_signature_length, rsa) != 1) {
         ABE_ERROR("RSA Signature Failed");
         free(db_signature);
@@ -330,7 +333,7 @@ bool Abe_ssl::parse_user_registration_response(const char *json_str, const char 
 
     response_json = cJSON_Parse(json_str);
     if (response_json == NULL) {
-        ABE_ERROR("Failed to parse json from kms response");
+        ABE_KMS_ERROR("Failed to parse json from kms response");
         return false;
     }
 
@@ -338,25 +341,27 @@ bool Abe_ssl::parse_user_registration_response(const char *json_str, const char 
     msg = cJSON_GetObjectItem(response_json, "msg");
     data = cJSON_GetObjectItem(response_json, "data");
     if (!cJSON_IsNumber(code) || !cJSON_IsString(msg) || !cJSON_IsObject(data)) {
-        ABE_ERROR("Failed to parse json from kms response");
+        ABE_KMS_ERROR("Failed to parse json from kms response");
         return false;
     }
 
     uuid = cJSON_GetObjectItem(data, "uuid");
     if (!cJSON_IsString(uuid)) {
-        ABE_ERROR("Failed to parse json from kms response");
+        ABE_KMS_ERROR("Failed to parse json from kms response");
         cJSON_Delete(response_json);
         return false;
     }
 
     if (strcmp(uuid->valuestring, uuid_str) != 0) {
-        ABE_ERROR("Inconsistent uuid between request and response");
+        ABE_KMS_ERROR("Inconsistent uuid between request and response");
         cJSON_Delete(response_json);
         return false;
     }
 
     if (code->valueint != ENUM_RESPONSE_SUCCESS) {
-        ABE_ERROR("Response error from kms.");
+        std::string errmsg = std::string("Response error from kms(");
+        errmsg += msg->valuestring + std::string(")");
+        ABE_KMS_ERROR(errmsg.c_str());
         cJSON_Delete(response_json);
         return false;
     }
@@ -365,7 +370,7 @@ bool Abe_ssl::parse_user_registration_response(const char *json_str, const char 
     kms_signature = cJSON_GetObjectItem(data, "kmsSignature");
     kms_signature_type = cJSON_GetObjectItem(data, "kmsSignatureType");
     if (!cJSON_IsString(abe_key) || !cJSON_IsString(kms_signature) || !cJSON_IsString(kms_signature_type)) {
-        ABE_ERROR("Failed to parse json from kms response");
+        ABE_KMS_ERROR("Failed to parse json from kms response");
         cJSON_Delete(response_json);
         return false;
     }
@@ -392,7 +397,7 @@ bool Abe_ssl::verify_kms_signature(const AbeInfo &abe_info, const char *kms_cert
     unsigned int kms_signature_length = 0;
     unsigned int abe_key_b64_length = 0;
     unsigned int kms_signature_b64_length = 0;
-    static unsigned char hash_msg[SHA256_DIGEST_LENGTH];
+    static unsigned char hash_msg[SHA512_DIGEST_LENGTH];
 
     if (strcmp(abe_info.kms_signature_type, "RSA") != 0) {
         ABE_ERROR("only support for RSA signatures yet");
@@ -439,9 +444,9 @@ bool Abe_ssl::verify_kms_signature(const AbeInfo &abe_info, const char *kms_cert
     abe_key = (unsigned char*)malloc(base64_utils::b64_dec_len(abe_key_b64_length));
     abe_key_length = base64_utils::b64_decode(abe_key_b64, abe_key_b64_length, (char*)abe_key);
 
-    SHA256(abe_key, abe_key_length, hash_msg);
+    SHA512(abe_key, abe_key_length, hash_msg);
 
-    if (RSA_verify(NID_sha256, hash_msg, SHA256_DIGEST_LENGTH, 
+    if (RSA_verify(NID_sha512, hash_msg, SHA512_DIGEST_LENGTH, 
                     kms_signature, kms_signature_length, rsa) != 1) {
         ABE_ERROR("kms signature verification failed");
         free(abe_key);

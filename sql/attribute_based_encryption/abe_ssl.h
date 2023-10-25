@@ -39,6 +39,7 @@ typedef struct _AbeInfoData
 struct Abe_ssl
 {
 public:
+    static constexpr int MAX_MSG_LENGTH = 200;
     static constexpr int BODY_LENGTH_BYTE = 2;
     static constexpr int BODY_LENGTH_BYTE_LENGTH = BODY_LENGTH_BYTE * 2;
     enum enum_event_type {ENUM_EVENT_USER_REGISTRATION, ENUM_EVENT_UNKOWN};
