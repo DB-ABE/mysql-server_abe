@@ -622,6 +622,26 @@ class Item_func_current_abe_user_key : public Item_func_sysconst {
   }
 };
 
+class Item_func_current_abe_attribute : public Item_func_sysconst {
+  typedef Item_func_sysconst super;
+
+ public:
+  explicit Item_func_current_abe_attribute(const POS &pos) : Item_func_sysconst(pos) {}
+
+  bool itemize(Parse_context *pc, Item **res) override;
+
+  String *val_str(String *) override;
+  bool resolve_type(THD *) override {
+    set_data_type_string(uint32{MAX_FIELD_BLOBLENGTH});
+    set_nullable(true);
+    return false;
+  }
+  const char *func_name() const override { return "current_abe_attribute"; }
+  const Name_string fully_qualified_func_name() const override {
+    return NAME_STRING("current_abe_attribute()");
+  }
+};
+
 
 class Item_func_user : public Item_func_sysconst {
   typedef Item_func_sysconst super;

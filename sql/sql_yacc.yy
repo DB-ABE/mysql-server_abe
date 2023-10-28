@@ -1374,6 +1374,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> POLICY_SYM 930
 /*add token end*/
 %token  CURRENT_ABE_USER_KEY 893
+%token CURRENT_ABE_ATTRIBUTE 848
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -10950,6 +10951,10 @@ function_call_conflict:
         | CURRENT_ABE_USER_KEY '(' ')'
           {
             $$= NEW_PTN Item_func_current_abe_user_key(@$);
+          }
+        | CURRENT_ABE_ATTRIBUTE '(' ')'
+          {
+            $$= NEW_PTN Item_func_current_abe_attribute(@$);
           }
         | geometry_function
         ;

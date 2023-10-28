@@ -1825,7 +1825,7 @@ String *Item_func_current_abe_user_key::val_str(String *str) {
   tables.open_strategy = TABLE_LIST::OPEN_NORMAL;
   if (open_trans_system_tables_for_read(thd, &tables))
   {
-      DBUG_PRINT("error", ("Can't open level_sec_poset table"));
+      DBUG_PRINT("error", ("Can't open abe_user_key table"));
       return nullptr;
   }
   TABLE *table;
@@ -1848,6 +1848,67 @@ String *Item_func_current_abe_user_key::val_str(String *str) {
       if(recd.length() == sub.length() && strncmp( recd.ptr(), sub.c_str(), sub.length() ) == 0) {
         String data;
         get_field(&tmp_root, table->field[2], &data);
+        str->copy(data.ptr(), data.length(), system_charset_info);
+        get_it = true;
+      }
+  }
+  iterator.reset();
+  table->invalidate_dict();
+  close_trans_system_tables(thd);
+  if(get_it){
+    null_value = false;
+    return str;
+  }  
+  null_value = true;
+  return nullptr;
+}
+
+bool Item_func_current_abe_attribute::itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::itemize(pc, res)) return true;
+
+  pc->thd->lex->safe_to_cache_query = false;
+  return false;
+}
+
+String *Item_func_current_abe_attribute::val_str(String *str) {
+  assert(fixed);
+  THD *thd = current_thd;
+
+  //读取当前用户，也即current_user
+  Security_context *const ctx = thd->security_context();
+  string priv_user = ctx->priv_user().str;
+  string priv_host = ctx->priv_host().str;
+  string sub = priv_user + "@" + priv_host;
+
+  //根据current_user读取abe_attribute_manager表中的att
+  TABLE_LIST tables("mysql", "abe_attribute_manager", TL_READ);
+  tables.open_strategy = TABLE_LIST::OPEN_NORMAL;
+  if (open_trans_system_tables_for_read(thd, &tables))
+  {
+      DBUG_PRINT("error", ("Can't open abe_attribute_manager table"));
+      return nullptr;
+  }
+  TABLE *table;
+  unique_ptr_destroy_only<RowIterator> iterator;
+  MEM_ROOT tmp_root{PSI_NOT_INSTRUMENTED, 4096};
+  table = tables.table;
+  iterator = init_table_iterator(thd, table, false, false);
+  if (iterator == nullptr)
+  {
+      close_trans_system_tables(thd);
+      return nullptr;
+  }
+  table->use_all_columns();
+  int read_rec_errcode;
+  bool get_it = false;
+  while (!get_it && !(read_rec_errcode = iterator->Read()))
+  {
+      String recd;
+      get_field(&tmp_root, table->field[1], &recd); //第二列：user
+      if(recd.length() == sub.length() && strncmp( recd.ptr(), sub.c_str(), sub.length() ) == 0) {
+        String data;
+        get_field(&tmp_root, table->field[2], &data); //第三列：att
         str->copy(data.ptr(), data.length(), system_charset_info);
         get_it = true;
       }
