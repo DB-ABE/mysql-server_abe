@@ -1,0 +1,1 @@
+--abe_ca_cert_file=/usr/local/src/certs/cacert.pem --abe_db_cert_file=/usr/local/src/certs/clientcert.pem --abe_db_key_file=/usr/local/src/certs/client.pem --abe_kms_cert_file=/usr/local/src/certs/servercert.pem --abe_kms_ip=172.17.0.3 --abe_kms_port=20001

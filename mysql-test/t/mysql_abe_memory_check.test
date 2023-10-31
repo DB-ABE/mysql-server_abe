@@ -1,0 +1,16 @@
+connection default;
+create user 'testabe'@'%' identified by '123456';
+grant abe attribute 'attr1 | attr2' to testabe@'%';
+grant select on mysql.abe_user_key to testabe@'%';
+
+connect (con_testabe,127.0.0.1,testabe,,mysql);
+select current_abe_attribute();
+disconnect con_testabe;
+
+connection default;
+delete from mysql.abe_user_key;
+delete from mysql.abe_attribute_manager;
+drop user testabe@'%';
+
+
+disconnect default

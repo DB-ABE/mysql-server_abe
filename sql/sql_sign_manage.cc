@@ -535,6 +535,9 @@ bool sqlParsing(THD* thd, COM_DATA com_data)
             grant_abe_att(thd, paramaters);
             delete parser;
             return true;
+        default:
+            delete parser;
+            return false;
     }
 }
 
@@ -553,7 +556,7 @@ void reset_statement(THD *thd)
 }
 
 //在abac_domain_sec中没有 就返回 true
-bool not_has_son_domain(THD* thd,int len ,char *str)
+bool not_has_son_domain(THD* thd,size_t len ,char *str)
 {
     TABLE *table;
     unique_ptr_destroy_only<RowIterator> iterator;
@@ -586,7 +589,7 @@ bool not_has_son_domain(THD* thd,int len ,char *str)
 }
 
 
-bool not_has_son_level(THD* thd,int len ,char *str)
+bool not_has_son_level(THD* thd,size_t len ,char *str)
 {
     TABLE *table;
     unique_ptr_destroy_only<RowIterator> iterator;
@@ -702,8 +705,8 @@ bool mysql_add_level_realtion(THD *thd,vector<LEX_STRING>& paramaters)
         reset_statement(thd);
         return true;
     }
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_level_sec_poset", 20};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_level_sec_poset", 20};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -774,8 +777,8 @@ bool mysql_delete_domain_relation(THD *thd,vector<LEX_STRING>& paramaters)
         reset_statement(thd);
         return true;
     }
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_domain_sec_poset", 21};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_domain_sec_poset", 21};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -842,8 +845,8 @@ bool mysql_delete_level_relation(THD *thd,vector<LEX_STRING>& paramaters)
         reset_statement(thd);
         return true;
     }
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_level_sec_poset", 20};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_level_sec_poset", 20};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -1034,6 +1037,7 @@ bool mysql_show_level(THD *thd,vector<LEX_STRING>& paramaters)
         delete[] buf;
         return res;
     }
+    return false;
 }
 
 bool mysql_show_domain(THD *thd,vector<LEX_STRING>& paramaters)
@@ -1100,6 +1104,7 @@ bool mysql_show_domain(THD *thd,vector<LEX_STRING>& paramaters)
         delete[] buf;
         return res;
     }
+    return false;
 }
 
 bool init_domain(THD *thd, vector<BRIM> &list)
@@ -1362,8 +1367,8 @@ bool init_sign(THD *thd)
 
 bool show_all_domain(THD *thd)
 {
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_domain_sec", 15};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_domain_sec", 15};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -1385,8 +1390,8 @@ bool show_all_domain(THD *thd)
 
 bool show_all_level(THD *thd)
 {
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_level_sec", 14};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_level_sec", 14};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -1408,8 +1413,8 @@ bool show_all_level(THD *thd)
 
 bool show_all_domain_relation(THD *thd)
 {
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_domain_sec_poset", 21};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_domain_sec_poset", 21};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -1431,8 +1436,8 @@ bool show_all_domain_relation(THD *thd)
 
 bool show_all_level_relation(THD *thd)
 {
-    LEX_CSTRING DB = {(char *)"mysql", 5};
-    LEX_CSTRING TABLE = {(char *)"abac_level_sec_poset", 20};
+    LEX_CSTRING DB = {"mysql", 5};
+    LEX_CSTRING TABLE = {"abac_level_sec_poset", 20};
     if (check_sign(thd, DB, TABLE))
     {
         send_access_deny(thd);
@@ -1584,9 +1589,9 @@ bool mysql_add_policy(THD *thd,vector<LEX_STRING>& paramaters)
 
                         if (!acl_cache_lock.lock()) return false;
                         int state;
-                        for (int i = 0; i < list.size(); i++)
+                        for (size_t i = 0; i < list.size(); i++)
                         {
-                            int state = policy_decision(u,obj,list[i], my_ip);
+                            state = policy_decision(u,obj,list[i], my_ip);
                             if (state != tmp_ans)
                             {
                                 acl_cache_lock.unlock();
@@ -2232,10 +2237,10 @@ bool check_abac_access_alter(THD *thd, List<LEX_USER> &list)
     List_iterator<LEX_USER> user_list(list);
     LEX_USER *user;
     while ((user = user_list++) != nullptr) {
-        if (strcmp(user->user.str, "abac_supervisor")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_supervisor@%" ||
-            strcmp(user->user.str, "abac_auditor")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_auditor@%" ||
-            strcmp(user->user.str, "abac_admin")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_admin@%" || 
-            strcmp(user->user.str, "root")==0 && strcmp(user->host.str,"localhost")==0 && sub != "root@localhost")
+        if ((strcmp(user->user.str, "abac_supervisor")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_supervisor@%") ||
+            (strcmp(user->user.str, "abac_auditor")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_auditor@%") ||
+            (strcmp(user->user.str, "abac_admin")==0 && strcmp(user->host.str,"%")==0 && sub != "abac_admin@%") || 
+            (strcmp(user->user.str, "root")==0 && strcmp(user->host.str,"localhost")==0 && sub != "root@localhost"))
             {
                 if(super) return false;
                 my_error(ER_SEPARATION_OF_POWERS_DENIED_ERROR, MYF(0));
@@ -2266,9 +2271,9 @@ bool check_abac_access(THD *thd, List<LEX_USER> &list)
             my_error(ER_UNKNOWN_ERROR, MYF(0), "You can't drop or rename the root@localhost user.");
             return true;
         }
-        if (strcmp(user->user.str, "abac_supervisor")==0 && strcmp(user->host.str,"%")==0 ||
-            strcmp(user->user.str, "abac_auditor")==0 && strcmp(user->host.str,"%")==0 ||
-            strcmp(user->user.str, "abac_admin")==0 && strcmp(user->host.str,"%")==0 )
+        if ((strcmp(user->user.str, "abac_supervisor")==0 && strcmp(user->host.str,"%")==0) ||
+            (strcmp(user->user.str, "abac_auditor")==0 && strcmp(user->host.str,"%")==0) ||
+            (strcmp(user->user.str, "abac_admin")==0 && strcmp(user->host.str,"%")==0) )
             {
                 if(super) return false;
                 my_error(ER_SEPARATION_OF_POWERS_DENIED_ERROR, MYF(0));
@@ -2328,7 +2333,7 @@ bool check_sign(THD *thd, LEX_CSTRING db)
     //new added by yuang in 2022.9.26 公共内存上锁
     if (!acl_cache_lock.lock()) return true;
 
-    for (int i = 0; i < list.size(); i++)
+    for (size_t i = 0; i < list.size(); i++)
     {
         state = policy_decision(sub,obj,list[i], my_ip);
         if (state == 0)
@@ -2396,7 +2401,7 @@ bool check_sign(THD *thd, LEX_CSTRING db, LEX_CSTRING table)
     //new added by yuang in 2022.9.26 公共内存上锁
     if (!acl_cache_lock.lock()) return true;
 
-    for (int i = 0; i < list.size(); i++)
+    for (size_t i = 0; i < list.size(); i++)
     {
         state = policy_decision(sub,obj,list[i], my_ip);
         if (state == 0)
@@ -2460,7 +2465,7 @@ bool check_sign(THD* thd, LEX_CSTRING db, LEX_CSTRING table, LEX_CSTRING col_nam
     //new added by yuang in 2022.9.26 公共内存上锁
     if (!acl_cache_lock.lock()) return true;
 
-    for (int i = 0; i < list.size(); i++)
+    for (size_t i = 0; i < list.size(); i++)
     {
         state = policy_decision(sub,obj,list[i], my_ip);
         if (state == 0)
@@ -2527,13 +2532,21 @@ bool grant_abe_att(THD *thd,vector<LEX_STRING>& paramaters)
     //和KMS通信，获取abe密钥，构造插入语句
     string add_abe_key_command;
     if(!initAbeData(add_abe_key_command,namehost, att_list.str)){
-        thd->update_slow_query_status();
-        if (thd->killed) thd->send_kill_message();
-        thd->send_statement_status();
-        thd->reset_query();
-        thd->set_command(COM_SLEEP);
-        thd->set_proc_info(nullptr);
+        // thd->update_slow_query_status();
+        // if (thd->killed) thd->send_kill_message();
+        // thd->send_statement_status();
+        // thd->reset_query();
+        // thd->set_command(COM_SLEEP);
+        // thd->set_proc_info(nullptr);
         thd->lex->sql_command = SQLCOM_END;
+        /* The error must be set. */
+        assert(thd->is_error());
+        thd->send_statement_status();
+
+        /* Mark the statement completed. */
+        // MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+        thd->m_statement_psi = nullptr;
+        thd->m_digest = nullptr;
         return false; 
     }
 

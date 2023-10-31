@@ -55,13 +55,13 @@ static const char *initialization_cmds[] = {"USE mysql;\n", nullptr};
 #define GENERATED_PASSWORD_LENGTH 12
 
 #define INSERT_USER_SUPERVISOR_CMD \
-  "CREATE USER abac_supervisor@'%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
+  "CREATE USER abac_supervisor@'%%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
 #define INSERT_USER_SUPERVISOR_CMD_INSECURE "CREATE USER abac_supervisor@'%';\n"
 #define INSERT_USER_ADMIN_CMD \
-  "CREATE USER abac_admin@'%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
+  "CREATE USER abac_admin@'%%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
 #define INSERT_USER_ADMIN_CMD_INSECURE "CREATE USER abac_admin@'%';\n"
 #define INSERT_USER_AUDITOR_CMD \
-  "CREATE USER abac_auditor@'%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
+  "CREATE USER abac_auditor@'%%' IDENTIFIED BY '%s' PASSWORD EXPIRE;\n"
 #define INSERT_USER_AUDITOR_CMD_INSECURE "CREATE USER abac_auditor@'%';\n"
 
 char
