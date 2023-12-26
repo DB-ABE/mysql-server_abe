@@ -1,16 +1,9 @@
-connection default;
 create user 'zhangsan'@'%' identified by '123456';
 grant abe attribute 'attr1 | attr2' to zhangsan@'%';
 grant select on mysql.abe_user_key to zhangsan@'%';
-
-connect (con_zhangsan,127.0.0.1,zhangsan,123456,mysql);
 select current_abe_attribute();
-disconnect con_zhangsan;
-
-connection default;
+current_abe_attribute()
+attr1 | attr2
 delete from mysql.abe_user_key;
 delete from mysql.abe_attribute_manager;
 drop user zhangsan@'%';
-
-
-disconnect default;

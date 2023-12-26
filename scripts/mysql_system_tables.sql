@@ -522,51 +522,82 @@ INSERT IGNORE INTO server_cost(cost_name) VALUES
 
 
 -- new added
+set @cmd="CREATE DATABASE audit_log";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE DATABASE audit_log;
-
-CREATE TABLE IF NOT EXISTS abac_level_sec (
+set @cmd="CREATE TABLE IF NOT EXISTS abac_level_sec (
   level_name varchar(60) NOT NULL,
   PRIMARY KEY(level_name) ) 
-  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_level_sec_poset (
+set @cmd="CREATE TABLE IF NOT EXISTS abac_level_sec_poset (
   level_h varchar(60) NOT NULL, 
   level_l varchar(60) NOT NULL,
   level_relation_id int auto_increment primary key,
   foreign key(level_h) references abac_level_sec(level_name),
   foreign key(level_l) references abac_level_sec(level_name)) 
-  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_domain_sec (
+set @cmd="CREATE TABLE IF NOT EXISTS abac_level_sec_poset (
+  level_h varchar(60) NOT NULL, 
+  level_l varchar(60) NOT NULL,
+  level_relation_id int auto_increment primary key,
+  foreign key(level_h) references abac_level_sec(level_name),
+  foreign key(level_l) references abac_level_sec(level_name)) 
+  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+set @cmd="CREATE TABLE IF NOT EXISTS abac_domain_sec (
   domain_name varchar(60) NOT NULL,
   PRIMARY KEY(domain_name) ) 
-  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_domain_sec_poset (
+set @cmd="CREATE TABLE IF NOT EXISTS abac_domain_sec_poset (
   domain_h varchar(60) NOT NULL, 
   domain_l varchar(60) NOT NULL,
   domain_relation_id int auto_increment primary key,
   foreign key(domain_h) references abac_domain_sec(domain_name),
   foreign key(domain_l) references abac_domain_sec(domain_name)) 
-  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_attributes(
+set @cmd="CREATE TABLE IF NOT EXISTS abac_attributes(
 	id int auto_increment primary key,
 	att_name varchar(60) not null unique,
 	type ENUM ('string','int','double','set') not null)
-	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_attribute_manager(
+set @cmd="CREATE TABLE IF NOT EXISTS abac_attribute_manager(
 	object varchar(60) not null,
   att_name varchar(60) not null,
 	attribute_value varchar(60) not null,
   attribute_manager_id int auto_increment primary key,
   unique(object, att_name, attribute_value),
 	foreign key(att_name) references abac_attributes(att_name))
-	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abac_policies(
+set @cmd="CREATE TABLE IF NOT EXISTS abac_policies(
 	subject varchar(60) not null,
 	object varchar(60) not null,
   obj_typ ENUM ('database','table','column','any') not null,
@@ -583,17 +614,22 @@ CREATE TABLE IF NOT EXISTS abac_policies(
   foreign key(att_name) references abac_attributes(att_name),
   foreign key(sub_att) references abac_attribute_manager(attribute_manager_id),
   foreign key(obj_att) references abac_attribute_manager(attribute_manager_id))
-	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+	ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-
-CREATE TABLE IF NOT EXISTS abe_attribute_manager(
+set @cmd="CREATE TABLE IF NOT EXISTS abe_attribute_manager(
   id int auto_increment primary key,
   user varchar(60) not null,
   att varchar(600) not null,
   unique(user)
-)ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  )ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS abe_user_key(
+set @cmd="CREATE TABLE IF NOT EXISTS abe_user_key(
   id int auto_increment primary key,
   owner varchar(60) not null,
   encrypted_key varchar(10000) not null,
@@ -603,17 +639,20 @@ CREATE TABLE IF NOT EXISTS abe_user_key(
   sig_kms_type varchar(60),
   unique(owner),
   foreign key(owner) references abe_attribute_manager(user)
-)ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
+  )ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
-
-CREATE TABLE IF NOT EXISTS abe_shared_table(
+set @cmd="CREATE TABLE IF NOT EXISTS abe_shared_table(
   id int auto_increment primary key,
   index_info varchar(160) not null,
   policy_info varchar(160),
   cyphertext MEDIUMBLOB  not null
-  -- cyphertext MEDIUMBLOB  not null abe_encrypt
-)ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci;
-
+  )ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci";
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS sec_role (
   user varchar(60) NOT NULL, 

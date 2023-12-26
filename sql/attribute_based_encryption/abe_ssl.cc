@@ -478,6 +478,7 @@ bool Abe_ssl::process_user_registration_response(SSL *ssl, const AbeSslConfig &c
             free(json_str);
             return false;
         }
+    free(json_str);
     return true;
 }
 
